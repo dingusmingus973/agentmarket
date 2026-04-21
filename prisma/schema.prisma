@@ -1,0 +1,235 @@
+// agentmarket/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  clerkId       String   @unique
+  email         String   @unique
+  name          String?
+  avatarUrl     String?
+  stripeId      String?  @unique  // Stripe customer ID
+  stripeConnectId String? @unique // Stripe Connect account (sellers)
+  isSeller      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  listings      Listing[]
+  purchases     Purchase[]
+  reviews       Review[]
+  sandboxRuns   SandboxRun[]
+}
+
+// ─────────────────────────────────────────
+// LISTINGS (agents for sale)
+// ─────────────────────────────────────────
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum PricingModel {
+  ONE_TIME
+  SUBSCRIPTION
+  PAY_PER_RUN
+  FREE
+}
+
+enum AgentCategory {
+  JOB_DESCRIPTION
+  SOURCING
+  OUTREACH
+  INTERVIEW
+  OFFERS
+  OTHER
+}
+
+model Listing {
+  id              String        @id @default(cuid())
+  sellerId        String
+  seller          User          @relation(fields: [sellerId], references: [id])
+
+  // Content
+  name            String
+  slug            String        @unique
+  shortDesc       String        @db.VarChar(200)
+  fullDesc        String        @db.Text
+  category        AgentCategory
+  tags            String[]
+  iconEmoji       String        @default("🤖")
+  iconBg          String        @default("#E1F5EE")
+
+  // Agent config
+  model           String        // e.g. "claude-sonnet-4-6", "gpt-4o"
+  systemPrompt    String        @db.Text
+  requiredInputs  String[]      // field names the user must provide
+  exampleOutput   String        @db.Text
+
+  // Pricing
+  pricingModel    PricingModel  @default(ONE_TIME)
+  priceUsd        Int           @default(0) // cents
+  stripePriceId   String?       // Stripe Price object ID
+
+  // Status
+  status          ListingStatus @default(DRAFT)
+  rejectionReason String?
+  reviewedAt      DateTime?
+  reviewedBy      String?       // admin user ID
+
+  // Stats (denormalized for perf)
+  totalRuns       Int           @default(0)
+  avgRating       Float?
+  reviewCount     Int           @default(0)
+  purchaseCount   Int           @default(0)
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  purchases       Purchase[]
+  reviews         Review[]
+  sandboxRuns     SandboxRun[]
+
+  @@index([status, category])
+  @@index([sellerId])
+  @@index([slug])
+}
+
+// ─────────────────────────────────────────
+// PURCHASES
+// ─────────────────────────────────────────
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  REFUNDED
+  DISPUTED
+}
+
+enum LicenseType {
+  PERSONAL
+  COMMERCIAL
+}
+
+model Purchase {
+  id                String        @id @default(cuid())
+  buyerId           String
+  buyer             User          @relation(fields: [buyerId], references: [id])
+  listingId         String
+  listing           Listing       @relation(fields: [listingId], references: [id])
+
+  // Payment
+  stripePaymentIntentId String?   @unique
+  stripeSessionId   String?       @unique
+  amountPaid        Int           // cents
+  platformFee       Int           // cents (20%)
+  sellerPayout      Int           // cents (80%)
+  currency          String        @default("usd")
+
+  // License
+  licenseType       LicenseType   @default(PERSONAL)
+  licenseKey        String        @unique @default(cuid())
+
+  // Status
+  status            PurchaseStatus @default(PENDING)
+  refundedAt        DateTime?
+  refundReason      String?
+
+  // Version lock — snapshot of listing config at time of purchase
+  lockedModel       String
+  lockedSystemPrompt String       @db.Text
+  lockedRequiredInputs String[]
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  agentRuns         AgentRun[]
+
+  @@index([buyerId])
+  @@index([listingId])
+  @@index([licenseKey])
+}
+
+// ─────────────────────────────────────────
+// AGENT RUNS (purchased agents being used)
+// ─────────────────────────────────────────
+
+model AgentRun {
+  id          String   @id @default(cuid())
+  purchaseId  String
+  purchase    Purchase @relation(fields: [purchaseId], references: [id])
+
+  input       Json
+  output      String   @db.Text
+  model       String
+  tokensUsed  Int?
+  durationMs  Int?
+  success     Boolean  @default(true)
+  errorMsg    String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([purchaseId])
+}
+
+// ─────────────────────────────────────────
+// SANDBOX RUNS (free test runs pre-purchase)
+// ─────────────────────────────────────────
+
+model SandboxRun {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  ipAddress   String?  // fallback for unauthenticated users
+
+  input       Json
+  output      String   @db.Text
+  model       String
+  tokensUsed  Int?
+  durationMs  Int?
+  success     Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+
+  @@index([listingId, userId])
+  @@index([listingId, ipAddress])
+}
+
+// ─────────────────────────────────────────
+// REVIEWS
+// ─────────────────────────────────────────
+
+model Review {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+
+  rating      Int      // 1–5
+  body        String   @db.Text
+  verified    Boolean  @default(false) // true = confirmed purchaser
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([listingId, authorId])
+  @@index([listingId])
+}
