@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // src/app/api/webhooks/clerk/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
