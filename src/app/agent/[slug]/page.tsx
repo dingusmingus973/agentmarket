@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // src/app/agent/[slug]/page.tsx
 import { prisma } from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";

@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // src/app/purchase/success/page.tsx
 import { stripe } from "@/lib/stripe";
 import Link from "next/link";

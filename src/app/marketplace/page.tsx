@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 // src/app/marketplace/page.tsx
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
