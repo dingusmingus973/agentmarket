@@ -111,7 +111,7 @@ async function runClaude({
 
   return {
     output,
-    tokensUsed: data.usage?.input_tokens + data.usage?.output_tokens ?? 0,
+    tokensUsed: (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0),
     durationMs: Date.now() - start,
     success: true,
   };
