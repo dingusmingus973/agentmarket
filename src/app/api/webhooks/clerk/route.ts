@@ -1,8 +1,8 @@
-export const dynamic = "force-dynamic";
 // src/app/api/webhooks/clerk/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook } from "svix";
 import { prisma } from "@/lib/prisma";
+export const dynamic = "force-dynamic";
 
 interface ClerkUserEvent {
   type: string;

@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
 // src/app/api/webhooks/stripe/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/prisma";
 import Stripe from "stripe";
+export const dynamic = "force-dynamic";
 
 // Stripe requires the raw body for signature verification
 export const runtime = "nodejs";

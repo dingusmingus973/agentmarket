@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
 // src/app/api/admin/listings/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+export const dynamic = "force-dynamic";
 
 function isAdmin(userId: string): boolean {
   const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim());

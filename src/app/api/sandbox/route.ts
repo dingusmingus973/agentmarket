@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
 // src/app/api/sandbox/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { runAgent, SupportedModel } from "@/lib/llm";
 import { z } from "zod";
+export const dynamic = "force-dynamic";
 
 const FREE_RUNS_PER_USER = 3;
 const FREE_RUNS_PER_IP = 3;

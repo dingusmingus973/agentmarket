@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
 // src/app/api/reviews/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   listingId: z.string(),

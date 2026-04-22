@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
 // src/app/api/sellers/connect/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { stripe } from "@/lib/stripe";
+export const dynamic = "force-dynamic";
 
 export async function POST(_req: NextRequest) {
   const { userId } = await auth();

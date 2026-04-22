@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
 // src/app/api/listings/create/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { AgentCategory, PricingModel } from "@prisma/client";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   name: z.string().min(3).max(80),
