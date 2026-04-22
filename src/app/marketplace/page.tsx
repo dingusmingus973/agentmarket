@@ -1,7 +1,7 @@
-export const dynamic = "force-dynamic";
 // src/app/marketplace/page.tsx
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
+export const dynamic = "force-dynamic";
 
 export const revalidate = 60; // ISR — revalidate every 60s
 

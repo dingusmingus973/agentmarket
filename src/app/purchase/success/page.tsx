@@ -1,7 +1,7 @@
-export const dynamic = "force-dynamic";
 // src/app/purchase/success/page.tsx
 import { stripe } from "@/lib/stripe";
 import Link from "next/link";
+export const dynamic = "force-dynamic";
 
 export default async function PurchaseSuccessPage({
   searchParams,
