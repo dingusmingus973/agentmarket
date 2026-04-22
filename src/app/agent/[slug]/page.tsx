@@ -7,13 +7,7 @@ import PurchaseButton from "@/components/marketplace/PurchaseButton";
 import SandboxRunner from "@/components/marketplace/SandboxRunner";
 import ReviewForm from "@/components/marketplace/ReviewForm";
 
-export async function generateStaticParams() {
-  const listings = await prisma.listing.findMany({
-    where: { status: "APPROVED" },
-    select: { slug: true },
-  });
-  return listings.map((l) => ({ slug: l.slug }));
-}
+
 
 export async function generateMetadata({ params }: { params: { slug: string } }) {
   const listing = await prisma.listing.findUnique({
