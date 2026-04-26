@@ -1,241 +1,113 @@
 export const dynamic = "force-dynamic";
-// src/app/agent/[slug]/page.tsx
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
-import PurchaseButton from "@/components/marketplace/PurchaseButton";
-import SandboxRunner from "@/components/marketplace/SandboxRunner";
-import ReviewForm from "@/components/marketplace/ReviewForm";
+import Link from "next/link";
 
-
-
-export async function generateMetadata({ params }: { params: { slug: string } }) {
+export default async function AgentPage({ params }: { params: { slug: string } }) {
   const listing = await prisma.listing.findUnique({
-    where: { slug: params.slug },
-    select: { name: true, shortDesc: true },
+    where: { slug: params.slug, status: "APPROVED" },
+    include: { seller: { select: { id: true, name: true, email: true } } },
   });
-  if (!listing) return {};
-  return { title: `${listing.name} — AgentMarket`, description: listing.shortDesc };
-}
 
-async function getListing(slug: string) {
-  return prisma.listing.findUnique({
-    where: { slug, status: "APPROVED" },
-    include: {
-      seller: { select: { id: true, name: true, avatarUrl: true } },
-      reviews: {
-        orderBy: { createdAt: "desc" },
-        take: 8,
-        include: { author: { select: { name: true } } },
-      },
-      _count: { select: { purchases: true, reviews: true } },
-    },
-  });
-}
-
-export default async function AgentDetailPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const { userId } = await auth();
-  const listing = await getListing(params.slug);
   if (!listing) notFound();
 
-  // Check if current user has purchased
-  let hasPurchased = false;
-  let licenseKey: string | null = null;
-  if (userId) {
-    const user = await prisma.user.findUnique({ where: { clerkId: userId } });
-    if (user) {
-      const purchase = await prisma.purchase.findFirst({
-        where: { buyerId: user.id, listingId: listing.id, status: "COMPLETED" },
-        select: { licenseKey: true },
-      });
-      hasPurchased = !!purchase;
-      licenseKey = purchase?.licenseKey ?? null;
-    }
-  }
-
-  const priceDisplay =
-    listing.priceUsd === 0 ? "Free" : `$${(listing.priceUsd / 100).toFixed(0)}`;
+  const priceDisplay = listing.priceUsd === 0 ? "Free" : "$" + (listing.priceUsd / 100).toFixed(0);
 
   return (
-    <main className="max-w-6xl mx-auto px-6 py-10">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main content */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Header */}
-          <div>
-            <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl mb-4"
-              style={{ background: listing.iconBg }}
-            >
-              {listing.iconEmoji}
-            </div>
-            <h1 className="text-2xl font-medium text-slate-900 mb-2">{listing.name}</h1>
-            <div className="flex items-center gap-3 text-sm text-slate-500">
-              <span>by {listing.seller.name}</span>
-              <span>·</span>
-              <span>{listing.totalRuns.toLocaleString()} runs</span>
-              {listing.avgRating && (
-                <>
-                  <span>·</span>
-                  <span className="flex items-center gap-1">
-                    <span className="text-amber-400">★</span>
-                    {listing.avgRating.toFixed(1)} ({listing.reviewCount} reviews)
-                  </span>
-                </>
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-4xl mx-auto px-6 py-12">
+        <Link href="/marketplace" className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1.5 mb-8">
+          ← Back to marketplace
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-8">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-3xl">
+                  {listing.iconEmoji || "🤖"}
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-slate-900">{listing.name}</h1>
+                  <p className="text-slate-500 mt-1">{listing.shortDesc}</p>
+                </div>
+              </div>
+
+              {listing.tags && listing.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {listing.tags.map(tag => (
+                    <span key={tag} className="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-medium">{tag}</span>
+                  ))}
+                </div>
               )}
-            </div>
-          </div>
 
-          {/* Tags */}
-          <div className="flex flex-wrap gap-2">
-            {listing.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-xs px-3 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200"
-              >
-                {tag}
-              </span>
-            ))}
-            <span className="text-xs px-3 py-1 rounded-md bg-slate-100 text-slate-600 border border-slate-200">
-              {listing.model}
-            </span>
-          </div>
-
-          {/* Description */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-5">
-            <div>
-              <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                What it does
-              </h2>
-              <p className="text-sm text-slate-700 leading-relaxed">{listing.fullDesc}</p>
-            </div>
-
-            <div>
-              <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                Required inputs
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {listing.requiredInputs.map((input) => (
-                  <span
-                    key={input}
-                    className="text-xs font-mono px-2 py-1 bg-slate-50 border border-slate-200 rounded text-slate-600"
-                  >
-                    {input}
-                  </span>
-                ))}
+              <div className="prose prose-sm max-w-none text-slate-600">
+                <h2 className="text-base font-semibold text-slate-900 mb-2">About this agent</h2>
+                <p className="leading-relaxed">{listing.fullDesc}</p>
               </div>
             </div>
 
-            <div>
-              <h2 className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                Example output
-              </h2>
-              <pre className="text-xs bg-slate-50 border border-slate-200 rounded-lg p-4 whitespace-pre-wrap text-slate-700 font-mono leading-relaxed overflow-auto max-h-64">
-                {listing.exampleOutput}
-              </pre>
-            </div>
-          </div>
-
-          {/* Sandbox runner (client component) */}
-          <SandboxRunner
-            listingId={listing.id}
-            requiredInputs={listing.requiredInputs}
-            hasPurchased={hasPurchased}
-            licenseKey={licenseKey}
-          />
-
-          {/* Review form — only shown to verified buyers who haven't reviewed */}
-          <ReviewForm listingId={listing.id} />
-
-          {/* Reviews */}
-          {listing.reviews.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-xl p-6">
-              <h2 className="text-sm font-medium text-slate-900 mb-4">
-                Reviews ({listing._count.reviews})
-              </h2>
-              <div className="space-y-4">
-                {listing.reviews.map((review) => (
-                  <div key={review.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-slate-800">
-                        {review.author.name}
-                        {review.verified && (
-                          <span className="ml-2 text-xs text-brand-600 bg-brand-50 px-2 py-0.5 rounded-full">
-                            Verified buyer
-                          </span>
-                        )}
-                      </span>
-                      <span className="text-amber-400 text-sm">
-                        {"★".repeat(review.rating)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-slate-600 leading-relaxed">{review.body}</p>
+            {/* How it works */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-8">
+              <h2 className="text-base font-semibold text-slate-900 mb-4">How it works</h2>
+              <div className="space-y-3">
+                {["Describe your inputs in the text field", "Click Run — Claude processes your request in seconds", "Copy and use the output directly in your workflow"].map((step, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i+1}</div>
+                    <p className="text-sm text-slate-600">{step}</p>
                   </div>
                 ))}
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 sticky top-6">
-            <div className="text-3xl font-medium text-slate-900 mb-1">{priceDisplay}</div>
-            <div className="text-xs text-slate-400 mb-5">
-              {listing.pricingModel === "FREE"
-                ? "Free forever"
-                : listing.pricingModel === "ONE_TIME"
-                ? "One-time · yours forever"
-                : "Per month"}
-            </div>
-
-            {hasPurchased ? (
-              <div className="space-y-3">
-                <div className="bg-brand-50 border border-brand-100 rounded-lg p-3 text-sm text-brand-600 font-medium text-center">
-                  ✓ You own this agent
+            {/* Seller */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-8">
+              <h2 className="text-base font-semibold text-slate-900 mb-4">About the seller</h2>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-600">
+                  {(listing.seller?.name || "A")[0].toUpperCase()}
                 </div>
-                <p className="text-xs text-slate-400 text-center">
-                  Use the runner below to run it anytime
-                </p>
+                <div>
+                  <p className="font-medium text-slate-900">{listing.seller?.name || "AgentMarket"}</p>
+                  <p className="text-xs text-slate-400">Verified seller</p>
+                </div>
               </div>
-            ) : (
-              <PurchaseButton
-                listingId={listing.id}
-                priceUsd={listing.priceUsd}
-                pricingModel={listing.pricingModel}
-                name={listing.name}
-              />
-            )}
+            </div>
+          </div>
 
-            <div className="mt-5 pt-5 border-t border-slate-100 space-y-2.5 text-xs text-slate-500">
-              <div className="flex justify-between">
-                <span>Model</span>
-                <span className="text-slate-700">{listing.model}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>License</span>
-                <span className="text-slate-700">Personal use</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Refund policy</span>
-                <span className="text-slate-700">7 days</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Total runs</span>
-                <span className="text-slate-700">{listing.totalRuns.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Purchases</span>
-                <span className="text-slate-700">{listing._count.purchases}</span>
+          {/* Sidebar */}
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 sticky top-6">
+              <div className="text-3xl font-bold text-slate-900 mb-1">{priceDisplay}</div>
+              {listing.priceUsd > 0 && <p className="text-sm text-slate-400 mb-6">one-time purchase</p>}
+              {listing.priceUsd === 0 && <p className="text-sm text-slate-400 mb-6">free to use</p>}
+
+              <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors mb-3">
+                {listing.priceUsd === 0 ? "Try this agent" : `Buy for ${priceDisplay}`}
+              </button>
+              <button className="w-full py-3 border border-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-50 transition-colors text-sm">
+                Try free sandbox (3 runs)
+              </button>
+
+              <div className="mt-6 pt-6 border-t border-slate-100 space-y-2.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Category</span>
+                  <span className="font-medium text-slate-900">{listing.category.replace("_", " ")}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Model</span>
+                  <span className="font-medium text-slate-900">Claude</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-500">Pricing</span>
+                  <span className="font-medium text-slate-900">{listing.pricingModel?.replace("_", " ") || "ONE TIME"}</span>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
